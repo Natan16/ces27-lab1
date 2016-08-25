@@ -128,13 +128,42 @@ func splitData(fileName string, chunkSize int) (numMapFiles int, err error) {
 				return numMapFiles, err
 			}
 		}
-
+		fmt.Printf("%v\n", chunkBuffer)
+		fmt.Println("Chunk : ", string(chunkBuffer))
+		fmt.Println("Padded: ", string(paddedBuffer))
 		paddedBuffer = chunkBuffer
 		bytesRead += pad
 
 		if bytesRead > 0 {
 			if bytesRead == chunkSize {
 				pad = 0
+				for b := paddedBuffer[bytesRead-1-pad]; b>>6 == 2; b = paddedBuffer[bytesRead-1-pad] {
+					pad++
+
+					if pad == bytesRead {
+						pad = 0
+						break
+					}
+				}
+
+				b := paddedBuffer[bytesRead-1-pad]
+				var n int = 0
+
+				switch {
+				case b>>3 == 30: // 00011110
+					n = 3
+				case b>>4 == 14: // 00001110
+					n = 2
+				case b>>5 == 6: // 00000110
+					n = 1
+				}
+
+				if n == pad {
+					pad = 0
+				} else {
+					pad++
+				}
+
 				for r := rune(paddedBuffer[bytesRead-1-pad]); unicode.IsLetter(r) || unicode.IsNumber(r); r = rune(paddedBuffer[bytesRead-1-pad]) {
 					pad++
 
@@ -152,6 +181,8 @@ func splitData(fileName string, chunkSize int) (numMapFiles int, err error) {
 				return numMapFiles, err
 			}
 			numMapFiles++
+
+			fmt.Println("Written:", string(paddedBuffer))
 			if _, err = tempFile.Write(paddedBuffer); err != nil {
 				tempFile.Close()
 				return numMapFiles, err

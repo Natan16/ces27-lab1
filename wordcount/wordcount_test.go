@@ -42,12 +42,13 @@ func TestSplitData(t *testing.T) {
 		chunkSize   int
 	}{
 		{false, "text file empty", "", 32},
-		{true, "text file larger than chunk size", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In eu elit vel libero auctor tempor nullam.", 32},
+		{false, "text file larger than chunk size", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. In eu elit vel libero auctor tempor nullam.", 32},
 		{false, "text file smaller than chunk size", "Lorem ipsum.", 32},
 		{false, "text file has exact chunk size", "Lorem ipsum dolor sit amet, con.", 32},
 		{false, "text file smaller than chunk size one word", "aaaaaaaaaaaaa", 32},
 		{false, "text file larger than chunk size one word", "aaaaaaaaaaaaa", 8},
 		{false, "text file larger than chunk size two words", "aaaaaa aaaaaa", 8},
+		{true, "unicode characters file", "\u2708 a \u2708 b", 8},
 	}
 
 	var (
