@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"unicode"
 )
 
 const (
@@ -102,10 +103,12 @@ func splitData(fileName string, chunkSize int) (numMapFiles int, err error) {
 	// YOUR CODE GOES HERE //
 	/////////////////////////
 	var (
-		file        *os.File
-		tempFile    *os.File
-		chunkBuffer []byte
-		bytesRead   int
+		file         *os.File
+		tempFile     *os.File
+		chunkBuffer  []byte
+		paddedBuffer []byte
+		bytesRead    int
+		pad          int
 	)
 
 	numMapFiles = 0
@@ -116,26 +119,48 @@ func splitData(fileName string, chunkSize int) (numMapFiles int, err error) {
 	defer file.Close()
 
 	chunkBuffer = make([]byte, chunkSize)
+	paddedBuffer = chunkBuffer
 
+	pad = 0
 	for {
-		if bytesRead, err = file.Read(chunkBuffer); err != nil {
+		if bytesRead, err = file.Read(paddedBuffer); err != nil {
 			if err != io.EOF {
 				return numMapFiles, err
 			}
 		}
 
+		paddedBuffer = chunkBuffer
+		bytesRead += pad
+
 		if bytesRead > 0 {
+			if bytesRead == chunkSize {
+				pad = 0
+				for r := rune(paddedBuffer[bytesRead-1-pad]); unicode.IsLetter(r) || unicode.IsNumber(r); r = rune(paddedBuffer[bytesRead-1-pad]) {
+					pad++
+
+					if pad == bytesRead {
+						pad = 0
+						break
+					}
+				}
+			} else {
+				pad = chunkSize - bytesRead
+			}
+			paddedBuffer = chunkBuffer[:chunkSize-pad]
+
 			if tempFile, err = os.Create(mapFileName(numMapFiles)); err != nil {
 				return numMapFiles, err
 			}
 			numMapFiles++
-
-			if _, err = tempFile.Write(chunkBuffer); err != nil {
+			if _, err = tempFile.Write(paddedBuffer); err != nil {
 				tempFile.Close()
 				return numMapFiles, err
 			}
 
 			tempFile.Close()
+
+			_ = copy(chunkBuffer, chunkBuffer[chunkSize-pad:])
+			paddedBuffer = chunkBuffer[pad:]
 		}
 
 		if bytesRead < chunkSize {
