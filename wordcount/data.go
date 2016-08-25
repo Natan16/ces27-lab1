@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pauloaguiar/ces27-lab1/mapreduce"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -100,7 +101,48 @@ func splitData(fileName string, chunkSize int) (numMapFiles int, err error) {
 	/////////////////////////
 	// YOUR CODE GOES HERE //
 	/////////////////////////
+	var (
+		file        *os.File
+		tempFile    *os.File
+		chunkBuffer []byte
+		bytesRead   int
+	)
+
 	numMapFiles = 0
+
+	if file, err = os.Open(fileName); err != nil {
+		return numMapFiles, err
+	}
+	defer file.Close()
+
+	chunkBuffer = make([]byte, chunkSize)
+
+	for {
+		if bytesRead, err = file.Read(chunkBuffer); err != nil {
+			if err != io.EOF {
+				return numMapFiles, err
+			}
+		}
+
+		if bytesRead > 0 {
+			if tempFile, err = os.Create(mapFileName(numMapFiles)); err != nil {
+				return numMapFiles, err
+			}
+			numMapFiles++
+
+			if _, err = tempFile.Write(chunkBuffer); err != nil {
+				tempFile.Close()
+				return numMapFiles, err
+			}
+
+			tempFile.Close()
+		}
+
+		if bytesRead < chunkSize {
+			break
+		}
+	}
+
 	return numMapFiles, nil
 }
 
